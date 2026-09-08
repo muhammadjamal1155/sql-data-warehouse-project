@@ -52,7 +52,7 @@ Data is sourced from two systems, provided as CSV files:
 
 Before transforming data into the Silver layer, it's important to understand how the raw CRM and ERP tables relate to each other. This model was mapped out from the Bronze layer structure and guided the join/derivation logic used in `proc_load_silver.sql`.
 
-![Data Model Overview](docs/data_model_overview.png)
+![Data Model Overview](Docs/data_model_overview.png)
 
 **Key relationships:**
 
@@ -91,7 +91,7 @@ sql-data-warehouse-project/
 │   └── gold/
 │       └── ddl_gold.sql
 │
-├── docs/
+├── Docs/
 │   ├── data_architecture.png     -- Medallion architecture diagram
 │   └── data_model_overview.png   -- Source (Bronze) CRM/ERP relationship model
 │
@@ -142,7 +142,7 @@ This procedure follows the same logging and `TRY...CATCH` pattern as the Bronze 
 - Deriving `cat_id` from `prd_key` and `prd_end_dt` via `LEAD()`
 - Validating and reconstructing dates from Bronze integer formats
 - Recalculating sales and price where source values are invalid, missing, or inconsistent
-- Standardizing ERP `cid` values to align with CRM `cust_key` format (see [Source Data Model](#-source-data-model))
+- Standardizing ERP `cid` values to align with CRM `cust_key` format (see [Source Data Model](#source-data-model))
 
 ### 4. Gold Layer *(planned)*
 
