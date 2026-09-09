@@ -65,7 +65,7 @@ The project follows the **Medallion Architecture**, where each layer has a speci
 
 ### Data Warehouse Architecture
 
-![Data Warehouse Architecture](docs/DataWarehouse.png)
+![Data Warehouse Architecture](./docs/DataWarehouse.png)
 
 ---
 
