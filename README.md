@@ -97,7 +97,7 @@ The source systems contain different key formats, so the Silver layer standardiz
 
 ### Data Integration Model
 
-![Data Integration Model](docs/data_integration_model_overview.png)
+![Data Integration Model](./docs/data_integration_model_overview.png)
 
 ### Key Relationships
 
@@ -398,7 +398,7 @@ The Gold layer implements a **Star Schema** designed for analytical queries, rep
 
 ### Gold Data Mart
 
-![Gold Data Mart](docs/data_mart.png)
+![Gold Data Mart](./docs/data_mart.png)
 
 ---
 
