@@ -1,32 +1,30 @@
 /*
 ================================================================================
-Layer        : Bronze Layer Data Quality Checks
+Layer        : Silver Layer Data Quality Checks
 Database     : DataWarehouse
 
 Description:
-    This script performs comprehensive data quality and consistency checks
-    on tables in the Bronze layer before transforming and loading the data
-    into the Silver layer.
+    This script performs data quality and transformation validation checks
+    on tables in the Silver layer.
 
-    The validation checks include:
-
-    1. NULL and duplicate checks on primary/business keys
-    2. Unwanted whitespace and trimming checks
-    3. Low-cardinality column consistency checks
-    4. Negative and NULL value checks
-    5. Date validation and date range checks
-    6. Date relationship/consistency checks
-    7. Referential integrity checks between CRM tables
-    8. Sales, quantity, and price consistency checks
-    9. Customer birth-date validation
-    10. Country, gender, and marital-status value checks
-    11. Product category and subcategory validation
-    12. Referential integrity between ERP and CRM product data
+    The purpose of these checks is to verify that:
+    
+    1. Primary and business keys contain no NULL or duplicate values
+    2. Text columns contain no unwanted leading/trailing spaces
+    3. Low-cardinality columns contain standardized values
+    4. Numeric columns contain valid values
+    5. Date columns contain valid and logically consistent dates
+    6. Sales calculations are mathematically consistent
+    7. Customer and product relationships are maintained
+    8. ERP data has been correctly transformed and standardized
+    9. Category and product relationships are valid
 
 Expected Result:
-    Most validation queries are expected to return NO RESULTS.
-    Any returned rows indicate potential data quality issues that should
-    be investigated before loading data into the Silver layer.
+    Most validation queries should return NO RESULTS.
+    
+    Any returned rows indicate a potential data quality or transformation
+    issue that should be investigated before using the Silver layer for
+    further transformations or loading into the Gold layer.
 
 ================================================================================
 */
@@ -37,11 +35,11 @@ GO
 
 
 /*==============================================================================
-  1. CRM CUSTOMER INFO
+  1. SILVER CRM CUSTOMER INFO
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.crm_cust_info;
+FROM Silver.crm_cust_info;
 
 
 /*------------------------------------------------------------------------------
@@ -53,7 +51,7 @@ FROM Bronze.crm_cust_info;
 SELECT 
     cst_id,
     COUNT(*) AS record_count
-FROM Bronze.crm_cust_info
+FROM Silver.crm_cust_info
 GROUP BY cst_id
 HAVING COUNT(*) > 1
     OR cst_id IS NULL;
@@ -66,7 +64,7 @@ HAVING COUNT(*) > 1
 ------------------------------------------------------------------------------*/
 
 SELECT cst_firstname
-FROM Bronze.crm_cust_info
+FROM Silver.crm_cust_info
 WHERE cst_firstname <> TRIM(cst_firstname);
 
 
@@ -77,7 +75,7 @@ WHERE cst_firstname <> TRIM(cst_firstname);
 ------------------------------------------------------------------------------*/
 
 SELECT cst_lastname
-FROM Bronze.crm_cust_info
+FROM Silver.crm_cust_info
 WHERE cst_lastname <> TRIM(cst_lastname);
 
 
@@ -88,7 +86,7 @@ WHERE cst_lastname <> TRIM(cst_lastname);
 ------------------------------------------------------------------------------*/
 
 SELECT cst_gndr
-FROM Bronze.crm_cust_info
+FROM Silver.crm_cust_info
 WHERE cst_gndr <> TRIM(cst_gndr);
 
 
@@ -99,39 +97,43 @@ WHERE cst_gndr <> TRIM(cst_gndr);
 ------------------------------------------------------------------------------*/
 
 SELECT cst_marital_status
-FROM Bronze.crm_cust_info
+FROM Silver.crm_cust_info
 WHERE cst_marital_status <> TRIM(cst_marital_status);
 
 
 /*------------------------------------------------------------------------------
-  Check distinct gender values
+  Check standardized gender values
 
-  Used to identify inconsistent values such as:
-  F, Female, f, M, Male, etc.
+  Expected values:
+      Female
+      Male
+      n/a
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT cst_gndr
-FROM Bronze.crm_cust_info;
+FROM Silver.crm_cust_info;
 
 
 /*------------------------------------------------------------------------------
-  Check distinct marital status values
+  Check standardized marital status values
 
-  Used to identify inconsistent values such as:
-  M, Married, S, Single, etc.
+  Expected values:
+      Married
+      Single
+      n/a
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT cst_marital_status
-FROM Bronze.crm_cust_info;
+FROM Silver.crm_cust_info;
 
 
 
 /*==============================================================================
-  2. CRM PRODUCT INFO
+  2. SILVER CRM PRODUCT INFO
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.crm_prd_info;
+FROM Silver.crm_prd_info;
 
 
 /*------------------------------------------------------------------------------
@@ -143,7 +145,7 @@ FROM Bronze.crm_prd_info;
 SELECT 
     prd_id,
     COUNT(*) AS record_count
-FROM Bronze.crm_prd_info
+FROM Silver.crm_prd_info
 GROUP BY prd_id
 HAVING COUNT(*) > 1
     OR prd_id IS NULL;
@@ -156,175 +158,71 @@ HAVING COUNT(*) > 1
 ------------------------------------------------------------------------------*/
 
 SELECT prd_nm
-FROM Bronze.crm_prd_info
+FROM Silver.crm_prd_info
 WHERE prd_nm <> TRIM(prd_nm);
 
 
 /*------------------------------------------------------------------------------
-  Check product cost for negative or NULL values
+  Check product cost for NULL or negative values
 
   Expectation: No Results
 ------------------------------------------------------------------------------*/
 
 SELECT prd_cost
-FROM Bronze.crm_prd_info
+FROM Silver.crm_prd_info
 WHERE prd_cost < 0
    OR prd_cost IS NULL;
 
 
 /*------------------------------------------------------------------------------
-  Check distinct product line values
+  Check standardized product line values
 
-  Used to identify inconsistent values before standardization.
+  Expected values:
+      Road
+      Mountain
+      Other Sales
+      n/a
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT prd_line
-FROM Bronze.crm_prd_info;
+FROM Silver.crm_prd_info;
 
 
 /*------------------------------------------------------------------------------
   Check product date consistency
 
-  End date should not be earlier than start date.
+  End date should never be earlier than start date.
 
   Expectation: No Results
 ------------------------------------------------------------------------------*/
 
 SELECT *
-FROM Bronze.crm_prd_info
+FROM Silver.crm_prd_info
 WHERE prd_end_dt < prd_start_dt;
+
+
+/*------------------------------------------------------------------------------
+  Check product start and end dates
+
+  End dates should be NULL for currently active products or
+  greater than/equal to their start dates.
+
+  Expectation: No Results
+------------------------------------------------------------------------------*/
+
+SELECT *
+FROM Silver.crm_prd_info
+WHERE prd_end_dt IS NOT NULL
+  AND prd_end_dt < prd_start_dt;
 
 
 
 /*==============================================================================
-  3. CRM SALES DETAILS
+  3. SILVER CRM SALES DETAILS
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.crm_sales_details;
-
-
-/*------------------------------------------------------------------------------
-  Supporting table checks
-------------------------------------------------------------------------------*/
-
-SELECT *
-FROM Bronze.crm_cust_info;
-
-SELECT *
-FROM Bronze.crm_prd_info;
-
-
-/*------------------------------------------------------------------------------
-  Check unwanted spaces in sales order number
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT sls_ord_num
-FROM Bronze.crm_sales_details
-WHERE sls_ord_num <> TRIM(sls_ord_num);
-
-
-/*------------------------------------------------------------------------------
-  Check customer ID relationship
-
-  Every sales customer ID should exist in the customer table.
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT 
-    sls_ord_num,
-    sls_prd_key,
-    sls_cust_id,
-    sls_order_dt,
-    sls_ship_dt,
-    sls_due_dt,
-    sls_sales,
-    sls_quantity,
-    sls_price
-FROM Bronze.crm_sales_details
-WHERE sls_cust_id NOT IN (
-    SELECT cst_id
-    FROM Silver.crm_cust_info
-);
-
-
-/*------------------------------------------------------------------------------
-  Check product key relationship
-
-  Every sales product key should exist in the product table.
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT 
-    sls_ord_num,
-    sls_prd_key,
-    sls_cust_id,
-    sls_order_dt,
-    sls_ship_dt,
-    sls_due_dt,
-    sls_sales,
-    sls_quantity,
-    sls_price
-FROM Bronze.crm_sales_details
-WHERE sls_prd_key NOT IN (
-    SELECT prd_key
-    FROM Silver.crm_prd_info
-);
-
-
-/*------------------------------------------------------------------------------
-  Check invalid order dates
-
-  Conditions:
-  - Date is zero or negative
-  - Date does not contain 8 digits
-  - Date is after 2050
-  - Date is before 1900
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT 
-    sls_order_dt
-FROM Bronze.crm_sales_details
-WHERE sls_order_dt <= 0
-   OR LEN(sls_order_dt) <> 8
-   OR sls_order_dt > 20500101
-   OR sls_order_dt < 19000101;
-
-
-/*------------------------------------------------------------------------------
-  Check invalid shipping dates
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT 
-    sls_ship_dt
-FROM Bronze.crm_sales_details
-WHERE sls_ship_dt <= 0
-   OR LEN(sls_ship_dt) <> 8
-   OR sls_ship_dt > 20500101
-   OR sls_ship_dt < 19000101;
-
-
-/*------------------------------------------------------------------------------
-  Check invalid due dates
-
-  Expectation: No Results
-------------------------------------------------------------------------------*/
-
-SELECT 
-    sls_due_dt
-FROM Bronze.crm_sales_details
-WHERE sls_due_dt <= 0
-   OR LEN(sls_due_dt) <> 8
-   OR sls_due_dt > 20500101
-   OR sls_due_dt < 19000101;
+FROM Silver.crm_sales_details;
 
 
 /*------------------------------------------------------------------------------
@@ -339,7 +237,7 @@ WHERE sls_due_dt <= 0
 ------------------------------------------------------------------------------*/
 
 SELECT *
-FROM Bronze.crm_sales_details
+FROM Silver.crm_sales_details
 WHERE sls_ship_dt < sls_order_dt
    OR sls_due_dt < sls_order_dt;
 
@@ -351,7 +249,7 @@ WHERE sls_ship_dt < sls_order_dt
 
       Sales = Quantity × Price
 
-  Also checks for:
+  Also checks:
       - NULL values
       - Zero values
       - Negative values
@@ -363,7 +261,7 @@ SELECT DISTINCT
     sls_sales,
     sls_quantity,
     sls_price
-FROM Bronze.crm_sales_details
+FROM Silver.crm_sales_details
 WHERE sls_sales <> sls_quantity * sls_price
    OR sls_sales IS NULL
    OR sls_quantity IS NULL
@@ -377,16 +275,30 @@ ORDER BY
     sls_price;
 
 
+/*------------------------------------------------------------------------------
+  Check NULL values in important sales columns
+
+  Expectation: No Results
+------------------------------------------------------------------------------*/
+
+SELECT *
+FROM Silver.crm_sales_details
+WHERE sls_ord_num IS NULL
+   OR sls_prd_key IS NULL
+   OR sls_cust_id IS NULL
+   OR sls_order_dt IS NULL
+   OR sls_quantity IS NULL
+   OR sls_sales IS NULL
+   OR sls_price IS NULL;
+
+
 
 /*==============================================================================
-  4. ERP CUSTOMER
+  4. SILVER ERP CUSTOMER
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.erp_cust_az12;
-
-SELECT *
-FROM Bronze.crm_cust_info;
+FROM Silver.erp_cust_az12;
 
 
 /*------------------------------------------------------------------------------
@@ -398,7 +310,7 @@ FROM Bronze.crm_cust_info;
 SELECT 
     cid,
     COUNT(*) AS record_count
-FROM Bronze.erp_cust_az12
+FROM Silver.erp_cust_az12
 GROUP BY cid
 HAVING COUNT(*) > 1
     OR cid IS NULL;
@@ -411,32 +323,32 @@ HAVING COUNT(*) > 1
 ------------------------------------------------------------------------------*/
 
 SELECT cid
-FROM Bronze.erp_cust_az12
+FROM Silver.erp_cust_az12
 WHERE cid <> TRIM(cid);
 
 
 /*------------------------------------------------------------------------------
-  Check customer birth dates
-
-  Birth date should not:
-      - Be before 1924
-      - Be in the future
+  Check future birth dates
 
   Expectation: No Results
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT bdate
-FROM Bronze.erp_cust_az12
-WHERE bdate < '1924-01-01'
-   OR bdate > GETDATE();
+FROM Silver.erp_cust_az12
+WHERE bdate > GETDATE();
 
 
 /*------------------------------------------------------------------------------
-  Check distinct gender values
+  Check standardized gender values
+
+  Expected values:
+      Female
+      Male
+      n/a
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT gen
-FROM Bronze.erp_cust_az12;
+FROM Silver.erp_cust_az12;
 
 
 /*------------------------------------------------------------------------------
@@ -446,17 +358,17 @@ FROM Bronze.erp_cust_az12;
 ------------------------------------------------------------------------------*/
 
 SELECT gen
-FROM Bronze.erp_cust_az12
+FROM Silver.erp_cust_az12
 WHERE gen <> TRIM(gen);
 
 
 
 /*==============================================================================
-  5. ERP LOCATION
+  5. SILVER ERP LOCATION
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.erp_loc_a101;
+FROM Silver.erp_loc_a101;
 
 
 /*------------------------------------------------------------------------------
@@ -468,7 +380,7 @@ FROM Bronze.erp_loc_a101;
 SELECT 
     cid,
     COUNT(*) AS record_count
-FROM Bronze.erp_loc_a101
+FROM Silver.erp_loc_a101
 GROUP BY cid
 HAVING COUNT(*) > 1
     OR cid IS NULL;
@@ -481,31 +393,34 @@ HAVING COUNT(*) > 1
 ------------------------------------------------------------------------------*/
 
 SELECT cid
-FROM Bronze.erp_loc_a101
+FROM Silver.erp_loc_a101
 WHERE cid <> TRIM(cid);
 
 
 /*------------------------------------------------------------------------------
-  Check distinct country values
+  Check standardized country values
 
-  Used to identify inconsistent country representations such as:
-  DE, Germany, USA, US, United States, etc.
+  Expected values include:
+      Germany
+      United States
+      Australia
+      United Kingdom
+      Canada
+      France
+      n/a
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT cntry
-FROM Bronze.erp_loc_a101;
+FROM Silver.erp_loc_a101;
 
 
 
 /*==============================================================================
-  6. ERP PRODUCT CATEGORY
+  6. SILVER ERP PRODUCT CATEGORY
 ==============================================================================*/
 
 SELECT *
-FROM Bronze.erp_px_cat_g1v2;
-
-SELECT *
-FROM Silver.crm_prd_info;
+FROM Silver.erp_px_cat_g1v2;
 
 
 /*------------------------------------------------------------------------------
@@ -517,7 +432,7 @@ FROM Silver.crm_prd_info;
 SELECT 
     id,
     COUNT(*) AS record_count
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 GROUP BY id
 HAVING COUNT(*) > 1
     OR id IS NULL;
@@ -530,18 +445,20 @@ HAVING COUNT(*) > 1
 ------------------------------------------------------------------------------*/
 
 SELECT id
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 WHERE id <> TRIM(id);
 
 
 /*------------------------------------------------------------------------------
-  Check category IDs that do not exist in CRM product information
+  Check category IDs against CRM product information
+
+  Every category ID should exist in CRM product information.
 
   Expectation: No Results
 ------------------------------------------------------------------------------*/
 
 SELECT id
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 WHERE id NOT IN (
     SELECT cat_id
     FROM Silver.crm_prd_info
@@ -549,11 +466,11 @@ WHERE id NOT IN (
 
 
 /*------------------------------------------------------------------------------
-  Check distinct category values
+  Check standardized category values
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT cat
-FROM Bronze.erp_px_cat_g1v2;
+FROM Silver.erp_px_cat_g1v2;
 
 
 /*------------------------------------------------------------------------------
@@ -563,16 +480,16 @@ FROM Bronze.erp_px_cat_g1v2;
 ------------------------------------------------------------------------------*/
 
 SELECT cat
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 WHERE cat <> TRIM(cat);
 
 
 /*------------------------------------------------------------------------------
-  Check distinct subcategory values
+  Check standardized subcategory values
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT subcat
-FROM Bronze.erp_px_cat_g1v2;
+FROM Silver.erp_px_cat_g1v2;
 
 
 /*------------------------------------------------------------------------------
@@ -582,7 +499,7 @@ FROM Bronze.erp_px_cat_g1v2;
 ------------------------------------------------------------------------------*/
 
 SELECT subcat
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 WHERE subcat <> TRIM(subcat);
 
 
@@ -591,7 +508,7 @@ WHERE subcat <> TRIM(subcat);
 ------------------------------------------------------------------------------*/
 
 SELECT DISTINCT maintenance
-FROM Bronze.erp_px_cat_g1v2;
+FROM Silver.erp_px_cat_g1v2;
 
 
 /*------------------------------------------------------------------------------
@@ -601,11 +518,39 @@ FROM Bronze.erp_px_cat_g1v2;
 ------------------------------------------------------------------------------*/
 
 SELECT maintenance
-FROM Bronze.erp_px_cat_g1v2
+FROM Silver.erp_px_cat_g1v2
 WHERE maintenance <> TRIM(maintenance);
 
 
 
 /*==============================================================================
-  END OF BRONZE DATA QUALITY CHECKS
+  7. FINAL SILVER LAYER DATA REVIEW
+==============================================================================*/
+
+
+/*------------------------------------------------------------------------------
+  Review all Silver layer tables
+------------------------------------------------------------------------------*/
+
+SELECT *
+FROM Silver.crm_cust_info;
+
+SELECT *
+FROM Silver.crm_prd_info;
+
+SELECT *
+FROM Silver.crm_sales_details;
+
+SELECT *
+FROM Silver.erp_cust_az12;
+
+SELECT *
+FROM Silver.erp_loc_a101;
+
+SELECT *
+FROM Silver.erp_px_cat_g1v2;
+
+
+/*==============================================================================
+  END OF SILVER LAYER DATA QUALITY CHECKS
 ==============================================================================*/
